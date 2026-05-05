@@ -10,6 +10,19 @@
     "provider"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/patlux/pi-commandcode-provider.git"
+  },
+  "homepage": "https://github.com/patlux/pi-commandcode-provider#readme",
+  "bugs": {
+    "url": "https://github.com/patlux/pi-commandcode-provider/issues"
+  },
+  "files": [
+    "index.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "npm run typecheck && tsx tests/test-pure-functions.ts && tsx tests/test-abort.ts && tsx tests/test-stream.ts && node tests/test-pi-local.mjs",
     "typecheck": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions --skipLibCheck --types node src/core.ts tests/*.ts",
