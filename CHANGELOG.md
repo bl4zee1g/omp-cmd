@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 - 2026-05-28
+
+- Add OMP (Oh My Pi) provider compatibility: support `~/.omp/agent/auth.json` auth path, handle OMP's env-var-name-as-apiKey quirk, convert OMP system prompt arrays to text.
+- Close open thinking blocks before starting text or tool output to prevent event ordering issues when upstream omits `reasoning-end`.
+- Correct DeepSeek V4 Pro discount as permanent (no expiry), not time-limited.
+- Correct DeepSeek V4 Flash cache-read rate to $0.028/M and add xiaomi/mimo models to pricing table.
+- Upgrade pi dependencies from `@mariozechner` 0.72.0 to `@earendil-works` 0.75.5.
+- Move `pi-coding-agent` to optional peerDependencies.
+
 ## 0.2.0 - 2026-05-27
 
 - Stream `reasoning-delta` events incrementally instead of buffering the full thinking block until `reasoning-end`. Emits `thinking_start`, `thinking_delta`, and `thinking_end` events as they arrive so the UI can show reasoning in real time.
