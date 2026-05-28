@@ -54,6 +54,27 @@ describe("streamCommandCode — auth", () => {
     assert.equal(server.requestCount(), 0)
   })
 
+  it("ignores the literal env-var name and falls back to env", async () => {
+    server.mockResponse({
+      type: "success",
+      events: [JSON.stringify({ type: "finish", finishReason: "stop" })],
+    })
+    const { streamCommandCode } = createTestDeps({
+      apiBase: server.baseUrl(),
+      env: { COMMANDCODE_API_KEY: "env-key" },
+    })
+
+    await collectEvents(
+      streamCommandCode(makeModel(), makeContext(), { apiKey: "COMMANDCODE_API_KEY" }),
+    )
+
+    assert.equal(
+      server.lastRequestHeaders().authorization,
+      "Bearer env-key",
+      "should resolve from env, not send the literal var name as the token",
+    )
+  })
+
   it("uses options.apiKey in the Authorization header", async () => {
     server.mockResponse({
       type: "success",

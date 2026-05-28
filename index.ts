@@ -33,7 +33,6 @@ const streamCommandCode = createStreamCommandCode({
 // ---------------------------------------------------------------------------
 
 export default async function (pi: ExtensionAPI) {
-
   const models = await fetchCommandCodeModels({ url: MODELS_URL })
 
   pi.registerProvider("commandcode", {

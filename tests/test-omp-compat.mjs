@@ -177,10 +177,10 @@ try {
   assert.equal(print.code, 0, print.stderr)
   assert.match(print.stdout, /mock-omp-ok/)
   assert.equal(requestCount, 1)
-  assert.ok(
-    typeof lastRequestHeaders.authorization === "string" &&
-      lastRequestHeaders.authorization.startsWith("Bearer "),
-    "should send a bearer Authorization header",
+  assert.equal(
+    lastRequestHeaders.authorization,
+    "Bearer mock-key",
+    "should send the resolved env-var value, not the literal var name",
   )
   assert.equal(lastRequestBody?.params?.model, TEST_MODEL)
   assert.equal(typeof lastRequestBody?.params?.system, "string")
