@@ -1,63 +1,55 @@
 # omp-cmd
 
-**omp** plugin that adds [Command Code](https://commandcode.ai) as a model provider. Based on [patlux's repo](https://github.com/patlux/pi-commandcode-provider)
+**omp** plugin that adds [Command Code](https://commandcode.ai) as a model provider. I aim for this to be a better maintained and simpler version of [patlux's repo](https://github.com/patlux/pi-commandcode-provider) that strips all the things I personally don't need. This plugin is entirely vibes based tho so do be advised.
 
 ## Installation
 
 ```bash
-# From npm (once published)
-omp plugin install omp-commandcode
-
 # From a local clone
 git clone https://github.com/bl4zee1g/omp-cmd.git
 omp plugin link ./omp-cmd
 ```
 
-## Authentication
-
-Choose **one**:
-
-### 1. Interactive login (recommended)
-
-Run `/login` in an omp session, select **Command Code**, and your browser opens to commandcode.ai. The API key is auto-stored in `~/.omp/agent/auth.json`.
-
-### 2. Environment variable
+## Updating
 
 ```bash
-export COMMANDCODE_API_KEY=user_xxxxxxxxxxxx
+# Pull latest changes from repo
+cd [..]/omp-cmd
+git pull
 ```
+After that, just relaunch omp and it should include the latest changes.
 
-### 3. Auth file
+## Authentication
+The plugin auto-creates `~/.omp/agent/auth.json` with a placeholder
+(`{"commandcode": "user_xxxxxxxxxxxx"}`) on first load.
 
-Create `~/.commandcode/auth.json` or `~/.omp/agent/auth.json`:
+**Option A — interactive login (recommended):**
+Run `/login` in an omp session, select **Command Code**. Your browser opens to
+commandcode.ai/api-keys. Generate an API key, then paste it when prompted — or
+skip the paste and add it to `~/.omp/agent/auth.json`:
 
 ```json
-{ "apiKey": "user_xxxxxxxxxxxx" }
+{ "commandcode": "user_..." }
 ```
 
-or
+Then re-run `/login` or restart the session.
 
+**Option B — manual file edit:**
+Place the key directly in `~/.omp/agent/auth.json`:
 ```json
-{ "commandcode": "user_xxxxxxxxxxxx" }
+{ "commandcode": "user_..." }
 ```
-
-## Configuration
-
-| Environment variable | Default | Description |
-|---|---|---|
-| `COMMANDCODE_API_BASE` | `https://api.commandcode.ai` | API base URL |
-| `COMMANDCODE_MODELS_URL` | `https://api.commandcode.ai/provider/v1/models` | Model list endpoint |
 
 ## Models
 
-Models are auto-discovered from Command Code's Provider API at startup. Display prices are maintained in this plugin and shown in `omp model list`.
+Models are auto-discovered from Command Code's Provider API at startup. Display prices are hardcoded in index.ts and shown in the status line.
 
 ## Usage
 
-Once installed and authenticated, select a Command Code model in your omp session:
+Once installed and authenticated, switch to a Command Code model in your omp session:
 
 ```
-/model deepseek/deepseek-v4-flash
+/switch commandcode/deepseek-v4-flash
 ```
 
 Or any other model available through Command Code's API.

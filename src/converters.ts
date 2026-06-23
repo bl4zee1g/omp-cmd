@@ -30,19 +30,11 @@ function apiKeyFromCredentialRecord(value: unknown): string | undefined {
 
 export function getApiKey(
 	options: {
-		env?: Record<string, string | undefined>;
 		authPaths?: string[];
 		homeDir?: string;
 	} = {},
 ): string | undefined {
-	const env = options.env ?? process.env;
 	const home = options.homeDir ?? os.homedir();
-
-	// 1. Environment variable
-	const envKey = env.COMMANDCODE_API_KEY;
-	if (envKey && envKey.length > 0) return envKey;
-
-	// 2. Auth files
 	const paths = options.authPaths ?? defaultAuthPaths(home);
 	for (const authPath of paths) {
 		if (!existsSync(authPath)) continue;
@@ -55,7 +47,6 @@ export function getApiKey(
 			// Malformed file — skip
 		}
 	}
-
 	return undefined;
 }
 

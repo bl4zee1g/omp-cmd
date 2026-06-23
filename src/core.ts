@@ -132,7 +132,7 @@ export function streamCommandCode(
 				usage: defaultUsage(),
 				stopReason: "error",
 				errorMessage:
-					"No Command Code API key. Run /login and select Command Code, set the COMMANDCODE_API_KEY env var, or configure ~/.commandcode/auth.json, ~/.pi/agent/auth.json or ~/.omp/agent/auth.json",
+					"No Command Code API key. Run /login and select Command Code, or configure ~/.commandcode/auth.json, ~/.pi/agent/auth.json or ~/.omp/agent/auth.json",
 				timestamp: now(),
 			};
 			stream.push({ type: "error", reason: "error", error: msg });

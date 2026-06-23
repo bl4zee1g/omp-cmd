@@ -27,7 +27,6 @@ omp-commandcode/
 │   ├── converters.ts   # Message/tool/system prompt conversion
 │   ├── models.ts       # Model discovery from Provider API
 │   ├── oauth.ts        # OAuth login flow
-│   ├── auth-server.ts  # Local HTTP server for OAuth callback
 │   └── types.ts        # Shared type guards and helpers
 ├── package.json
 ├── README.md
