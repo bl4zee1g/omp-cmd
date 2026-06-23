@@ -1,158 +1,69 @@
-# pi-commandcode-provider
+# omp-commandcode
 
-A [pi](https://github.com/badlogic/pi-mono) custom provider that connects pi to the [Command Code](https://commandcode.ai) API.
+**omp** plugin that adds [Command Code](https://commandcode.ai) as a model provider.
 
-> **Disclaimer:** This is an unofficial, community-maintained package. I am not affiliated with, endorsed by, or connected to Command Code in any way. This provider simply forwards requests to the public Command Code API using your own API key.
+## Installation
 
-> **Note:** This package only provides a model _provider_. It does **not** include an API key. You must bring your own Command Code API key or subscription.
+```bash
+# From npm (once published)
+omp plugin install omp-commandcode
 
-> 💰 **Current offers:** Command Code offers [4× usage of DeepSeek V4 Pro](https://commandcode.ai/docs/resources/pricing-limits#deepseek-v4-pro-4x-usage) and [2× usage of Qwen 3.7 Max](https://commandcode.ai/docs/resources/pricing-limits#qwen-3.7-max-2x-usage).
-
-## Models
-
-Models are fetched live from Command Code's Provider API at startup, so new models like Qwen 3.7 Max show up without a package release.
-
-You can list the current Command Code models with:
-
-```sh
-pi -e index.ts --list-models
+# Or from a local clone
+git clone https://github.com/patlux/omp-commandcode.git
+omp plugin link ./omp-commandcode
 ```
 
-## Install
+## Authentication
 
-```sh
-pi install npm:pi-commandcode-provider
-```
+Choose **one**:
 
-Or shorthand:
+### 1. Interactive login (recommended)
 
-```sh
-pi install pi-commandcode-provider
-```
-
-Then reload pi:
-
-```txt
-/reload
-```
-
-### Oh My Pi
-
-```sh
-omp plugin install pi-commandcode-provider
-```
-
-Then restart OMP or run:
-
-```txt
-/reload
-```
-
-## Setup
-
-Set your Command Code API key using one of these methods:
-
-### 1. Browser login (recommended)
-
-In pi, run:
-
-```txt
-/login
-```
-
-Then select **Command Code** from the provider list.
-
-<img width="1520" height="554" alt="image" src="https://github.com/user-attachments/assets/071e929a-6f49-4803-bfec-7a31368fb12a" />
-
-This opens Command Code in your browser and stores the returned API key in pi's auth file. If the browser shows "Copy your API key" because automatic transfer failed, copy that key and paste it into the pi terminal prompt.
-
-> Note: `/login commandcode` is not supported by pi currently; use interactive `/login` and select Command Code.
+Run `/login` in an omp session, select **Command Code**, and your browser opens to commandcode.ai. The API key is auto-stored in `~/.omp/agent/auth.json`.
 
 ### 2. Environment variable
 
-```sh
-export COMMANDCODE_API_KEY="user_..."
+```bash
+export COMMANDCODE_API_KEY=user_xxxxxxxxxxxx
 ```
 
 ### 3. Auth file
 
-Create `~/.commandcode/auth.json`:
+Create `~/.commandcode/auth.json` or `~/.omp/agent/auth.json`:
 
 ```json
-{
-  "apiKey": "user_..."
-}
+{ "apiKey": "user_xxxxxxxxxxxx" }
 ```
 
-The official Command Code CLI auth shape is also supported:
+or
 
 ```json
-{
-  "command-code": {
-    "type": "api",
-    "key": "user_..."
-  }
-}
+{ "commandcode": "user_xxxxxxxxxxxx" }
 ```
 
-Or use a pi/OMP auth file at `~/.pi/agent/auth.json` or `~/.omp/agent/auth.json`:
+## Configuration
 
-```json
-{
-  "commandcode": "user_..."
-}
-```
+| Environment variable | Default | Description |
+|---|---|---|
+| `COMMANDCODE_API_BASE` | `https://api.commandcode.ai` | API base URL |
+| `COMMANDCODE_MODELS_URL` | `https://api.commandcode.ai/provider/v1/models` | Model list endpoint |
+
+## Models
+
+Models are auto-discovered from Command Code's Provider API at startup. Display prices are maintained in this plugin and shown in `omp model list`.
 
 ## Usage
 
-After installing and setting your API key, select a Command Code model in pi:
+Once installed and authenticated, select a Command Code model in your omp session:
 
-```txt
+```
 /model deepseek/deepseek-v4-flash
 ```
 
-Any query will then use the Command Code API. You can list available models:
+Or any other model available through Command Code's API.
 
-```sh
-pi -e index.ts --list-models   # or /models within pi
-omp -e index.ts --list-models
-```
+## How it works
 
-In OMP, use the provider-qualified model name:
+This plugin registers a custom provider (`commandcode`) with omp's `ExtensionAPI.registerProvider()`. It implements a custom `streamSimple` handler that translates omp's request format to Command Code's proprietary `/alpha/generate` API, and translates the streaming response back into omp's event stream.
 
-```sh
-omp -p "hello" --model commandcode/deepseek/deepseek-v4-flash
-```
-
-OMP currently resolves `--provider commandcode --model ...` before extension providers are loaded, so prefer `--model commandcode/<model-id>`. <!-- TODO: remove this note once OMP fixes provider resolution order for extension-loaded providers -->
-
-## Model discovery
-
-On startup, the provider fetches:
-
-```txt
-https://api.commandcode.ai/provider/v1/models
-```
-
-For tests or local mocks, override it with `COMMANDCODE_MODELS_URL`.
-
-## Pricing
-
-Command Code does not yet expose model pricing through its Provider API. The provider ships a static cost table (`MODEL_COSTS` in `index.ts`) for known models so that pi can display per-model pricing.
-
-- Models present in `MODEL_COSTS` show their real per-million-token rates (including promotional deals like the DeepSeek V4 Pro 4× discount and Qwen 3.7 Max 2× discount).
-- Models **not** in the table fall back to zero cost. When the Provider API adds a `cost` field, the static table can be removed.
-
-To add or update a price, edit the `MODEL_COSTS` record in `index.ts` and update the corresponding test in `tests/test-pricing.ts`.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, PR expectations, and commit message rules.
-
-## Release
-
-See [RELEASE.md](RELEASE.md) for the prerelease, npm smoke-test, stable publish, git tag, and GitHub follow-up checklist.
-
-## License
-
-MIT
+Model discovery uses `fetchDynamicModels`, which fetches the live model list from Command Code's Provider API endpoint.

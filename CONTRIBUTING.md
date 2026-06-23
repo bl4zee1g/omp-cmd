@@ -1,136 +1,42 @@
 # Contributing
 
-Thanks for helping improve `pi-commandcode-provider`.
+## Prerequisites
 
-This is an unofficial Command Code provider for pi. Keep changes small, tested, and easy to review.
+- [omp](https://omp.sh) installed
+- [Bun](https://bun.sh) for local development
 
-## Development setup
+## Development
 
-```sh
-npm install
-npm test
+Clone this repo and link it into omp for development:
+
+```bash
+git clone https://github.com/patlux/omp-commandcode.git
+cd omp-commandcode
+omp plugin link .
 ```
 
-Useful commands:
+Changes to the `.ts` source files are picked up immediately — no rebuild step.
 
-```sh
-npm run typecheck
-npm run format:check
-npm run test:unit
-npm run test:models
-npm run test:oauth
-npm run test:abort
-npm run test:stream
-npm run test:pi-local
+## Structure
+
+```
+omp-commandcode/
+├── index.ts            # Extension entry point (registers the provider)
+├── src/
+│   ├── core.ts         # Streaming logic (custom API handler)
+│   ├── converters.ts   # Message/tool/system prompt conversion
+│   ├── models.ts       # Model discovery from Provider API
+│   ├── oauth.ts        # OAuth login flow
+│   ├── auth-server.ts  # Local HTTP server for OAuth callback
+│   └── types.ts        # Shared type guards and helpers
+├── package.json
+├── README.md
+├── CHANGELOG.md
+└── LICENSE
 ```
 
-Before opening a PR, run:
+## Release
 
-```sh
-npm test
-npm run format:check
-git diff --check
-```
-
-For release and npm smoke-test steps, see [RELEASE.md](RELEASE.md).
-
-## Pull request guidelines
-
-- Keep PRs focused on one problem or feature.
-- Add or update tests for behavior changes.
-- Update `README.md`, `CHANGELOG.md`, or `RELEASE.md` when user-facing behavior changes.
-- Avoid broad refactors unless the PR is specifically about refactoring.
-- Do not include API keys, tokens, real auth files, `.env` files, or other secrets.
-- Prefer documented/public Command Code API behavior. If compatibility with CLI behavior is needed, document why.
-- Make sure npm package contents still make sense when `package.json` `files` changes.
-
-## Testing pi integration changes
-
-For provider, auth, request-shape, or stream changes, test both local code and the package form when possible.
-
-Local extension smoke:
-
-```sh
-pi --no-extensions -e ./index.ts --list-models commandcode
-```
-
-Npm package smoke and isolated `/login` testing are documented in [RELEASE.md](RELEASE.md#test-the-npm-package-in-pi).
-
-## Commit message rules
-
-Use Angular-style Conventional Commits.
-
-Format:
-
-```txt
-<type>(<scope>): <subject>
-```
-
-Examples:
-
-```txt
-feat(auth): support Command Code CLI auth files
-fix(core): cap max tokens by selected model
-docs(release): document npm smoke testing
-test(stream): cover reasoning start events
-chore(release): publish 0.1.1
-```
-
-### Types
-
-Use one of these types:
-
-- `feat`: a new user-facing feature
-- `fix`: a bug fix
-- `docs`: documentation-only changes
-- `style`: formatting-only changes, no behavior change
-- `refactor`: code restructuring without behavior change
-- `perf`: performance improvement
-- `test`: adding or changing tests
-- `build`: package, dependency, or build-system changes
-- `ci`: CI workflow changes
-- `chore`: maintenance that does not fit another type
-- `revert`: revert a previous commit
-
-### Scopes
-
-Use a short lowercase scope. Prefer existing project areas:
-
-- `auth`
-- `oauth`
-- `core`
-- `models`
-- `stream`
-- `tests`
-- `docs`
-- `release`
-- `deps`
-- `ci`
-
-A scope is strongly recommended. If no scope fits, choose the closest project area instead of omitting it.
-
-### Subject line
-
-- Use imperative mood: `fix(auth): read oauth credentials`, not `fixed` or `fixes`.
-- Keep it concise.
-- Start lowercase after the colon.
-- Do not end with a period.
-
-### Body and footers
-
-Use a body when the reason is not obvious:
-
-```txt
-fix(core): cap max tokens by selected model
-
-Command Code can return models with lower output limits than the provider-wide cap.
-Clamp defaults to the selected model so requests do not exceed upstream limits.
-```
-
-Breaking changes must be marked with `!` or a `BREAKING CHANGE:` footer:
-
-```txt
-feat(api)!: switch to provider api endpoints
-
-BREAKING CHANGE: removes support for the legacy internal generate endpoint.
-```
+1. Update version in `package.json`.
+2. Move CHANGELOG entries from `[Unreleased]` to a new release section.
+3. Tag and publish to npm.

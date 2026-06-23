@@ -1,317 +1,298 @@
-import { existsSync, readFileSync } from "node:fs"
-import { homedir } from "node:os"
-import { join } from "node:path"
+import { existsSync, readFileSync } from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import type { Message, Tool, ToolCall } from "@oh-my-pi/pi-ai/types";
+import { isRecord, recordArray, recordOrEmpty, stringValue } from "./types";
 
-import type { MessageLike, StopReason, ToolLike } from "./types.ts"
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-export function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined
-}
-
-function booleanValue(value: unknown): boolean | undefined {
-  return typeof value === "boolean" ? value : undefined
-}
-
-export function recordArray(value: unknown): readonly Record<string, unknown>[] {
-  if (!Array.isArray(value)) return []
-  return value.filter(isRecord)
-}
-
-export function recordOrEmpty(value: unknown): Record<string, unknown> {
-  if (isRecord(value)) return value
-  if (typeof value === "string") {
-    try {
-      const parsed: unknown = JSON.parse(value)
-      if (isRecord(parsed)) return parsed
-    } catch {
-      // Some providers stream incomplete JSON argument fragments.
-    }
-  }
-  return {}
-}
-
-export function numberValue(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined
-}
+// ─── Auth helpers ────────────────────────────────────────────────────────────
 
 function defaultAuthPaths(home: string): string[] {
-  return [
-    join(home, ".commandcode", "auth.json"),
-    join(home, ".omp", "agent", "auth.json"),
-    join(home, ".pi", "agent", "auth.json"),
-  ]
+	return [
+		path.join(home, ".commandcode", "auth.json"),
+		path.join(home, ".pi", "agent", "auth.json"),
+		path.join(home, ".omp", "agent", "auth.json"),
+	];
 }
 
 function apiKeyFromCredentialRecord(value: unknown): string | undefined {
-  if (!isRecord(value)) return undefined
+	if (!isRecord(value)) return undefined;
+	const record = value as Record<string, unknown>;
 
-  const type = stringValue(value.type)
-  if (type === "api") return stringValue(value.key)
-  if (type === "oauth") return stringValue(value.access)
+	if (typeof record.apiKey === "string") return record.apiKey;
+	if (typeof record.accessToken === "string") return record.accessToken;
+	if (typeof record.token === "string") return record.token;
+	if (typeof record.commandcode === "string") return record.commandcode;
+	if (typeof record.COMMANDCODE === "string") return record.COMMANDCODE;
 
-  return stringValue(value.key) ?? stringValue(value.access)
+	const first = Object.values(record)[0];
+	return typeof first === "string" ? first : undefined;
 }
 
 export function getApiKey(
-  options: {
-    env?: NodeJS.ProcessEnv
-    authPaths?: readonly string[]
-    homeDir?: () => string
-  } = {},
+	options: {
+		env?: Record<string, string | undefined>;
+		authPaths?: string[];
+		homeDir?: string;
+	} = {},
 ): string | undefined {
-  const env = options.env ?? process.env
-  if (env.COMMANDCODE_API_KEY) return env.COMMANDCODE_API_KEY
+	const env = options.env ?? process.env;
+	const home = options.homeDir ?? os.homedir();
 
-  const home = options.homeDir?.() ?? homedir()
-  const authPaths = options.authPaths ?? defaultAuthPaths(home)
+	// 1. Environment variable
+	const envKey = env.COMMANDCODE_API_KEY;
+	if (envKey && envKey.length > 0) return envKey;
 
-  for (const authPath of authPaths) {
-    try {
-      if (!existsSync(authPath)) continue
-      const parsed: unknown = JSON.parse(readFileSync(authPath, "utf-8"))
-      if (!isRecord(parsed)) continue
+	// 2. Auth files
+	const paths = options.authPaths ?? defaultAuthPaths(home);
+	for (const authPath of paths) {
+		if (!existsSync(authPath)) continue;
+		try {
+			const content = readFileSync(authPath, "utf-8");
+			const parsed: unknown = JSON.parse(content);
+			const apiKey = apiKeyFromCredentialRecord(parsed);
+			if (apiKey && apiKey.length > 0) return apiKey;
+		} catch {
+			// Malformed file — skip
+		}
+	}
 
-      // Legacy: direct apiKey or commandcode field.
-      const apiKey = stringValue(parsed.apiKey)
-      if (apiKey) return apiKey
-      const commandcode = stringValue(parsed.commandcode)
-      if (commandcode) return commandcode
-
-      // pi stores OAuth credentials as {"commandcode": {"type":"oauth","access":"..."}}.
-      // The official Command Code CLI stores API credentials under "command-code".
-      const providerKey =
-        apiKeyFromCredentialRecord(parsed.commandcode) ??
-        apiKeyFromCredentialRecord(parsed["command-code"])
-      if (providerKey) return providerKey
-    } catch {
-      // Ignore malformed or unreadable auth files.
-    }
-  }
-
-  return undefined
+	return undefined;
 }
 
-export function textContent(message: { content?: unknown }): string {
-  return recordArray(message.content)
-    .filter((part) => part.type === "text")
-    .map((part) => stringValue(part.text) ?? "")
-    .join("\n")
-}
+// ─── Environment info ────────────────────────────────────────────────────────
 
 export function getEnvironmentInfo(): string {
-  return `${process.platform}-${process.arch}, Node.js ${process.version}`
+	return `${process.platform}-${process.arch}, Node.js ${process.version}`;
 }
+
+// ─── Schema / tool conversion ────────────────────────────────────────────────
 
 export function toJsonSchema(schema: unknown): unknown {
-  if (!isRecord(schema)) return {}
+	if (!isRecord(schema) || !isRecord((schema as Record<string, unknown>).def)) return schema;
+	const def = (schema as Record<string, unknown>).def as Record<string, unknown>;
 
-  const kind = stringValue(schema.kind) ?? stringValue(schema.type)
-  const enumValues = Array.isArray(schema.enum) ? schema.enum : undefined
-  if (enumValues) {
-    return { type: typeof enumValues[0], enum: enumValues }
-  }
+	if (typeof def.type === "string" && typeof def.description === "string") {
+		return {
+			type: def.type,
+			description: def.description,
+			properties: def.properties ?? {},
+			required: def.required ?? [],
+		};
+	}
 
-  switch (kind) {
-    case "string":
-    case "String":
-      return { type: "string" }
-    case "number":
-    case "Number":
-      return { type: "number" }
-    case "boolean":
-    case "Boolean":
-      return { type: "boolean" }
-    case "object":
-    case "Object": {
-      const properties: Record<string, unknown> = {}
-      const inferredRequired: string[] = []
-      const sourceProperties = isRecord(schema.properties) ? schema.properties : undefined
-      const optional = Array.isArray(schema.optional)
-        ? schema.optional.filter((item): item is string => typeof item === "string")
-        : []
+	if (typeof def.type === "string") {
+		return {
+			type: def.type,
+			properties: def.properties ?? {},
+			required: def.required ?? [],
+		};
+	}
 
-      if (sourceProperties) {
-        for (const [key, value] of Object.entries(sourceProperties)) {
-          properties[key] = toJsonSchema(value)
-          const valueRecord = isRecord(value) ? value : undefined
-          if (booleanValue(valueRecord?.optional) !== true && !optional.includes(key)) {
-            inferredRequired.push(key)
-          }
-        }
-      }
-
-      const explicitRequired = Array.isArray(schema.required)
-        ? schema.required.filter((item): item is string => typeof item === "string")
-        : undefined
-      const required = explicitRequired ?? inferredRequired
-      const out: Record<string, unknown> = { type: "object" }
-      if (Object.keys(properties).length > 0) out.properties = properties
-      if (required.length > 0) out.required = required
-      return out
-    }
-    case "array":
-    case "Array":
-      return {
-        type: "array",
-        items: toJsonSchema(schema.items ?? schema.element),
-      }
-    case "union":
-    case "Union": {
-      const variants = Array.isArray(schema.variants)
-        ? schema.variants
-        : Array.isArray(schema.anyOf)
-          ? schema.anyOf
-          : []
-      for (const variant of variants) {
-        const converted = toJsonSchema(variant)
-        if (isRecord(converted) && Object.keys(converted).length > 0) return converted
-      }
-      return {}
-    }
-    case "optional":
-    case "Optional":
-      return toJsonSchema(schema.wrapped ?? schema.inner)
-    default:
-      return {}
-  }
+	return schema;
 }
 
-export function toolsToJson(tools?: readonly ToolLike[]): unknown[] {
-  if (!tools) return []
-  return tools.map((tool) => ({
-    type: "function",
-    name: tool.name,
-    description: tool.description,
-    input_schema: tool.parameters ? toJsonSchema(tool.parameters) : {},
-  }))
+export function toolsToJson(tools?: readonly Tool[]): unknown[] {
+	if (!tools || tools.length === 0) return [];
+
+	return tools.map((tool) => ({
+		name: tool.name as string,
+		input_schema: toJsonSchema(tool.parameters),
+		description: tool.description ?? "",
+	}));
 }
 
-function completeToolCallIds(messages?: readonly MessageLike[]): Set<string> {
-  const callIds = new Set<string>()
-  const resultIds = new Set<string>()
+// ─── Message conversion ──────────────────────────────────────────────────────
 
-  for (const message of messages ?? []) {
-    if (message.role === "assistant") {
-      for (const content of recordArray(message.content)) {
-        if (content.type === "toolCall") {
-          const id = stringValue(content.id)
-          if (id) callIds.add(id)
-        }
-      }
-    } else if (message.role === "toolResult") {
-      if (message.toolCallId) resultIds.add(message.toolCallId)
-    }
-  }
+function completeToolCallIds(messages?: readonly Message[]): Set<string> {
+	const ids = new Set<string>();
+	if (!messages) return ids;
 
-  return new Set([...callIds].filter((id) => resultIds.has(id)))
+	for (const msg of messages) {
+		if (msg.role === "assistant" && Array.isArray(msg.content)) {
+			for (const block of msg.content) {
+				if (block && typeof block === "object" && "type" in block && block.type === "toolCall") {
+					ids.add((block as ToolCall).id);
+				}
+			}
+		}
+	}
+	return ids;
 }
 
-export function messagesToCC(messages?: readonly MessageLike[]): unknown[] {
-  const out: unknown[] = []
-  const pairedToolCallIds = completeToolCallIds(messages)
+export function messagesToCC(messages?: readonly Message[]): unknown[] {
+	if (!messages || messages.length === 0) return [];
 
-  for (const message of messages ?? []) {
-    if (message.role === "user") {
-      out.push({
-        role: "user",
-        content: typeof message.content === "string" ? message.content : message.content,
-      })
-    } else if (message.role === "assistant") {
-      const parts: unknown[] = []
-      for (const content of recordArray(message.content)) {
-        if (content.type === "text") {
-          parts.push({ type: "text", text: stringValue(content.text) ?? "" })
-        } else if (content.type === "thinking") {
-          parts.push({
-            type: "reasoning",
-            text: stringValue(content.thinking) ?? "",
-          })
-        } else if (content.type === "toolCall") {
-          const toolCallId = stringValue(content.id) ?? ""
-          if (!pairedToolCallIds.has(toolCallId)) continue
-          parts.push({
-            type: "tool-call",
-            toolCallId,
-            toolName: stringValue(content.name) ?? "",
-            input: recordOrEmpty(content.arguments),
-          })
-        }
-      }
-      if (parts.length > 0) out.push({ role: "assistant", content: parts })
-    } else if (message.role === "toolResult") {
-      if (!message.toolCallId || !pairedToolCallIds.has(message.toolCallId)) continue
-      out.push({
-        role: "tool",
-        content: [
-          {
-            type: "tool-result",
-            toolCallId: message.toolCallId,
-            toolName: message.toolName,
-            output: message.isError
-              ? { type: "error-text", value: textContent(message) }
-              : { type: "text", value: textContent(message) },
-          },
-        ],
-      })
-    }
-  }
-  return out
+	const toolCallIds = completeToolCallIds(messages);
+	const result: unknown[] = [];
+
+	for (const msg of messages) {
+		switch (msg.role) {
+			case "user": {
+				const content = typeof msg.content === "string" ? msg.content : extractTextFromContent(msg.content);
+				result.push({ role: "user", content });
+				break;
+			}
+			case "developer":
+			case "system": {
+				const content = typeof msg.content === "string" ? msg.content : extractTextFromContent(msg.content);
+				if (content) result.push({ role: "user", content });
+				break;
+			}
+		case "assistant": {
+			const blocks = Array.isArray(msg.content) ? msg.content : [];
+			const contentBlocks: unknown[] = [];
+
+			for (const block of blocks) {
+				if (!block || typeof block !== "object") continue;
+				const b = block as Record<string, unknown>;
+
+				if (b.type === "text" && typeof b.text === "string") {
+					contentBlocks.push({ type: "text", text: b.text });
+				} else if (b.type === "thinking" && typeof b.thinking === "string") {
+					contentBlocks.push({ type: "reasoning", text: b.thinking });
+				} else if (b.type === "toolCall" && typeof b.id === "string" && typeof b.name === "string") {
+					contentBlocks.push({
+						type: "tool-call",
+						toolCallId: b.id,
+						toolName: b.name,
+						input: isRecord(b.arguments) ? (b.arguments as Record<string, unknown>) : {},
+					});
+				}
+			}
+
+			const entry: Record<string, unknown> = { role: "assistant" };
+			if (contentBlocks.length === 1 && (contentBlocks[0] as Record<string, unknown>).type === "text") {
+				entry.content = (contentBlocks[0] as Record<string, unknown>).text as string;
+			} else if (contentBlocks.length > 0) {
+				entry.content = contentBlocks;
+			} else {
+				entry.content = "";
+			}
+			result.push(entry);
+			break;
+		}
+		case "toolResult": {
+			const toolResult = msg as {
+				role: "toolResult";
+				toolCallId: string;
+				toolName: string;
+				content: string | unknown[];
+				isError: boolean;
+			};
+			const textContent =
+				typeof toolResult.content === "string"
+					? toolResult.content
+					: extractTextFromContent(toolResult.content);
+
+			result.push({
+				role: "tool",
+				content: [
+					{
+						type: "tool-result",
+						toolCallId: toolResult.toolCallId,
+						toolName: toolResult.toolName,
+						output: toolResult.isError
+							? { type: "error-text", value: textContent }
+							: { type: "text", value: textContent },
+					},
+				],
+			});
+			break;
+		}
+		}
+	}
+
+	return result;
 }
 
-export function parseStreamEventLine(line: string): unknown | undefined {
-  let trimmed = line.trim()
-  if (!trimmed || trimmed.startsWith(":") || trimmed.startsWith("event:")) return undefined
-  if (trimmed.startsWith("data:")) trimmed = trimmed.slice(5).trim()
-  if (!trimmed || trimmed === "[DONE]") return undefined
+function extractTextFromContent(content: string | unknown[]): string {
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
 
-  try {
-    const parsed: unknown = JSON.parse(trimmed)
-    return parsed
-  } catch {
-    return undefined
-  }
+	return content
+		.filter((block): block is Record<string, unknown> => isRecord(block))
+		.filter((block) => block.type === "text")
+		.map((block) => (typeof block.text === "string" ? block.text : ""))
+		.join("");
 }
 
-export function mapFinishReason(reason: unknown): StopReason {
-  if (reason === "tool-calls") return "toolUse"
-  if (
-    reason === "length" ||
-    reason === "max_tokens" ||
-    reason === "max-tokens" ||
-    reason === "max_output_tokens"
-  ) {
-    return "length"
-  }
-  return "stop"
-}
+// ─── System prompt ───────────────────────────────────────────────────────────
 
 function promptPartToText(value: unknown, depth = 0): string {
-  if (depth > 10) return ""
-  if (typeof value === "string") return value
-  if (Array.isArray(value))
-    return value
-      .map((v) => promptPartToText(v, depth + 1))
-      .filter(Boolean)
-      .join("\n")
-  if (!isRecord(value)) return ""
-  const text = stringValue(value.text)
-  if (text) return text
-  const content = promptPartToText(value.content, depth + 1)
-  if (content) return content
-  return ""
+	if (depth > 10) return "";
+	if (typeof value === "string") return value;
+	if (Array.isArray(value)) return value.map((v) => promptPartToText(v, depth + 1)).join("\n");
+	if (isRecord(value)) {
+		const record = value as Record<string, unknown>;
+		if (typeof record.text === "string") return record.text;
+		if (typeof record.content === "string") return record.content;
+		if (typeof record.type === "string" && record.type === "text" && typeof record.text === "string") {
+			return record.text;
+		}
+	}
+	return "";
 }
 
 export function systemPromptToText(value: unknown): string {
-  if (value === undefined || value === null) return ""
-  if (typeof value === "string") return value
-  if (Array.isArray(value))
-    return value
-      .map((v) => promptPartToText(v, 0))
-      .filter(Boolean)
-      .join("\n\n")
-  return promptPartToText(value, 0)
+	if (Array.isArray(value)) {
+		return value.map((v) => promptPartToText(v)).join("\n\n");
+	}
+	if (typeof value === "string") return value;
+	return promptPartToText(value);
+}
+
+// ─── Stream parsing ──────────────────────────────────────────────────────────
+
+export function parseStreamEventLine(line: string): unknown | undefined {
+	const trimmed = line.trim();
+	if (!trimmed || trimmed === "[DONE]") return undefined;
+
+	// SSE format: "data: {...}"
+	if (trimmed.startsWith("data:")) {
+		const json = trimmed.slice(5).trim();
+		if (!json) return undefined;
+		try {
+			return JSON.parse(json);
+		} catch {
+			return undefined;
+		}
+	}
+
+	// Raw JSON line format (used by newer API versions)
+	try {
+		return JSON.parse(trimmed);
+	} catch {
+		return undefined;
+	}
+}
+
+export function mapFinishReason(reason: unknown): "stop" | "length" | "toolUse" | "error" {
+	if (typeof reason === "string") {
+		switch (reason) {
+			case "stop":
+			case "end_turn":
+				return "stop";
+			case "length":
+			case "max_tokens":
+				return "length";
+			case "tool_calls":
+			case "tool_use":
+				return "toolUse";
+			case "error":
+				return "error";
+		}
+	}
+	return "stop";
+}
+
+// ─── Project slug ────────────────────────────────────────────────────────────
+
+export function projectSlugFromPath(pathName: string): string {
+	return path
+		.basename(pathName)
+		.replace(/[^a-zA-Z0-9_-]/g, "-")
+		.replace(/-+/g, "-")
+		.replace(/^-|-$/g, "")
+		.toLowerCase()
+		.slice(0, 100);
 }

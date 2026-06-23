@@ -1,22 +1,22 @@
 {
-  "name": "pi-commandcode-provider",
-  "version": "0.4.1",
-  "description": "pi custom provider for Command Code API (commandcode.ai)",
+  "name": "omp-commandcode",
+  "version": "0.1.0",
+  "description": "omp plugin for Command Code API (commandcode.ai)",
   "type": "module",
   "keywords": [
-    "pi-package",
-    "pi-extension",
+    "omp-plugin",
+    "omp-extension",
     "commandcode",
     "provider"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/patlux/pi-commandcode-provider.git"
+    "url": "git+https://github.com/patlux/omp-commandcode.git"
   },
-  "homepage": "https://github.com/patlux/pi-commandcode-provider#readme",
+  "homepage": "https://github.com/patlux/omp-commandcode#readme",
   "bugs": {
-    "url": "https://github.com/patlux/pi-commandcode-provider/issues"
+    "url": "https://github.com/patlux/omp-commandcode/issues"
   },
   "files": [
     "index.ts",
@@ -24,43 +24,29 @@
     "README.md",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
-    "RELEASE.md",
     "LICENSE"
   ],
-  "scripts": {
-    "test": "npm run typecheck && tsx tests/test-pure-functions.ts && tsx tests/test-models.ts && tsx tests/test-pricing.ts && tsx tests/test-oauth.ts && tsx tests/test-abort.ts && tsx tests/test-stream.ts && tsx tests/test-retry.ts && node tests/test-pi-local.mjs && node tests/test-omp-compat.mjs",
-    "typecheck": "tsc --noEmit",
-    "format:check": "prettier --check '**/*.{ts,mjs,json,md}'",
-    "format": "prettier --write '**/*.{ts,mjs,json,md}'",
-    "test:unit": "tsx tests/test-pure-functions.ts",
-    "test:models": "tsx tests/test-models.ts",
-    "test:pricing": "tsx tests/test-pricing.ts",
-    "test:oauth": "tsx tests/test-oauth.ts",
-    "test:abort": "tsx tests/test-abort.ts",
-    "test:stream": "tsx tests/test-stream.ts",
-    "test:retry": "tsx tests/test-retry.ts",
-    "test:pi-local": "node tests/test-pi-local.mjs",
-    "test:smoke": "node tests/test-smoke.mjs"
-  },
-  "pi": {
+  "omp": {
     "extensions": [
       "./index.ts"
     ]
   },
   "devDependencies": {
-    "@types/node": "25.6.0",
-    "prettier": "^3.5.0",
-    "tsx": "4.22.4",
-    "typescript": "6.0.3"
-  },
-  "dependencies": {
-    "@earendil-works/pi-ai": "0.75.5"
+    "typescript": "^5.8.0"
   },
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "^0.75.5"
+    "@oh-my-pi/pi-ai": "^16.0.0",
+    "@oh-my-pi/pi-catalog": "^16.0.0",
+    "@oh-my-pi/pi-coding-agent": "^16.0.0"
   },
   "peerDependenciesMeta": {
-    "@earendil-works/pi-coding-agent": {
+    "@oh-my-pi/pi-ai": {
+      "optional": true
+    },
+    "@oh-my-pi/pi-catalog": {
+      "optional": true
+    },
+    "@oh-my-pi/pi-coding-agent": {
       "optional": true
     }
   }
