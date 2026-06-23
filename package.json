@@ -1,5 +1,5 @@
 {
-  "name": "omp-commandcode",
+  "name": "omp-cmd",
   "version": "0.1.0",
   "description": "omp plugin for Command Code API (commandcode.ai)",
   "type": "module",

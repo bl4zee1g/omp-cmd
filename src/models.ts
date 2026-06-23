@@ -44,7 +44,7 @@ export function commandCodeModelsFromApiResponse(value: unknown): readonly Comma
 
 	return data.map(parseApiModel).map((model) => ({
 		id: model.id,
-		name: `${model.name} (CC)`,
+		name: `${model.name} (cmd)`,
 		reasoning: true,
 		contextWindow: model.contextLength,
 		maxTokens: Math.min(model.contextLength, DEFAULT_MAX_OUTPUT_TOKENS),
