@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Message, Tool, ToolCall } from "@oh-my-pi/pi-ai/types";
-import { isRecord, recordArray, recordOrEmpty, stringValue } from "./types";
+import { isRecord, stringValue } from "./types";
 
 // ─── Auth helpers ────────────────────────────────────────────────────────────
 
@@ -257,24 +257,6 @@ export function parseStreamEventLine(line: string): unknown | undefined {
 	}
 }
 
-export function mapFinishReason(reason: unknown): "stop" | "length" | "toolUse" | "error" {
-	if (typeof reason === "string") {
-		switch (reason) {
-			case "stop":
-			case "end_turn":
-				return "stop";
-			case "length":
-			case "max_tokens":
-				return "length";
-			case "tool_calls":
-			case "tool_use":
-				return "toolUse";
-			case "error":
-				return "error";
-		}
-	}
-	return "stop";
-}
 
 // ─── Project slug ────────────────────────────────────────────────────────────
 

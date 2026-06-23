@@ -14,6 +14,26 @@ git clone https://github.com/bl4zee1g/omp-cmd.git
 omp plugin link ./omp-cmd
 ```
 
+## Uninstall
+
+```bash
+omp plugin unlink omp-commandcode
+```
+
+Delete the directory:
+```bash
+rm -rf ./omp-cmd
+```
+
+To fully clean up credentials:
+```bash
+rm ~/.omp/agent/auth.json
+# or just remove the commandcode key:
+# edit ~/.omp/agent/auth.json to delete the "commandcode" entry
+```
+
+After uninstalling, restart omp to pick up the change.
+
 ## Updating
 
 ```bash
@@ -22,6 +42,14 @@ cd [..]/omp-cmd
 git pull
 ```
 After that, just relaunch omp and it should include the latest changes.
+Alternatively, if you use [topgrade](https://github.com/topgrade-rs/topgrade) you can add it to your config:
+```topgrade.toml
+[git]
+# Pull these repos every time you run topgrade
+repos = [
+    "[path to]/omp-cmd",
+]
+```
 
 ## Authentication
 The plugin auto-creates `~/.omp/agent/auth.json` with a placeholder

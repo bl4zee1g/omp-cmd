@@ -16,7 +16,6 @@ import { isRecord, numberValue, stringValue } from "./types";
 export const DEFAULT_API_BASE = "https://api.commandcode.ai";
 export const COMMAND_CODE_CLI_VERSION = "0.40.0";
 
-const DEFAULT_GENERATE_MAX_TOKENS = 64_000;
 const DEFAULT_MAX_RETRIES = 0;
 const DEFAULT_MAX_RETRY_DELAY_MS = 60_000;
 const BASE_RETRY_DELAY_MS = 500;
@@ -68,16 +67,6 @@ function successStopReason(reason: StopReason): Extract<StopReason, "stop" | "le
 	return "stop";
 }
 
-function generateMaxTokens(model: Model): number {
-	const max = model.maxTokens ?? DEFAULT_GENERATE_MAX_TOKENS;
-	return Math.min(max, DEFAULT_GENERATE_MAX_TOKENS);
-}
-
-function headersToRecord(headers: Headers): Record<string, string> {
-	const result: Record<string, string> = {};
-	headers.forEach((value, key) => { result[key] = value; });
-	return result;
-}
 
 function commandCodeUsage(event: Record<string, unknown>): Record<string, unknown> | undefined {
 	return isRecord(event.totalUsage) ? (event.totalUsage as Record<string, unknown>) : undefined;
