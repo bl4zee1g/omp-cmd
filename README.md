@@ -1,6 +1,6 @@
-# omp-commandcode
+# omp-cmd
 
-**omp** plugin that adds [Command Code](https://commandcode.ai) as a model provider.
+**omp** plugin that adds [Command Code](https://commandcode.ai) as a model provider. Based on [patlux's repo](https://github.com/patlux/pi-commandcode-provider)
 
 ## Installation
 
@@ -8,9 +8,9 @@
 # From npm (once published)
 omp plugin install omp-commandcode
 
-# Or from a local clone
-git clone https://github.com/patlux/omp-commandcode.git
-omp plugin link ./omp-commandcode
+# From a local clone
+git clone https://github.com/bl4zee1g/omp-cmd.git
+omp plugin link ./omp-cmd
 ```
 
 ## Authentication
