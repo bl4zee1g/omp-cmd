@@ -2,6 +2,10 @@
 
 **omp** plugin that adds [Command Code](https://commandcode.ai) as a model provider. I aim for this to be a better maintained and simpler version of [patlux's repo](https://github.com/patlux/pi-commandcode-provider) that strips all the things I personally don't need. This plugin is entirely vibes based tho so do be advised.
 
+# Warning
+
+The founder of CommandCode warned that they're gonna ban people for using reverse engineered APIs such as this one in an [issue opened on patlux's repo](https://github.com/patlux/pi-commandcode-provider/issues/5) it seems so far they haven't spent many resources on detecting this but do be aware use this at your own risk. If you have the $15 plan you can use their provider API instead (as mentioned in the issue linked above).
+
 ## Installation
 
 ```bash
