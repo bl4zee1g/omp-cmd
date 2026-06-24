@@ -18,13 +18,11 @@
  * Models are fetched from Command Code's Provider API at startup.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import type { ExtensionAPI, ProviderModelConfig } from "@oh-my-pi/pi-coding-agent/extensibility/extensions";
 import { streamCommandCode, DEFAULT_API_BASE, COMMAND_CODE_CLI_VERSION } from "./src/core.ts";
 import { DEFAULT_MODELS_URL, fetchCommandCodeModels } from "./src/models.ts";
 import { getApiKey, login, refreshToken } from "./src/oauth.ts";
+import { createAuthJsonIfMissing, getNextAvailableKey } from "./src/key-manager";
 
 interface CommandCodeModelCost {
 	input: number;
@@ -74,39 +72,6 @@ const MODEL_COSTS: Record<string, CommandCodeModelCost> = {
 const API_BASE = process.env.COMMANDCODE_API_BASE ?? DEFAULT_API_BASE;
 const MODELS_URL = process.env.COMMANDCODE_MODELS_URL ?? DEFAULT_MODELS_URL;
 
-const AUTH_JSON_PATH = join(homedir(), ".omp", "agent", "auth.json");
-const AUTH_JSON_TEMPLATE = JSON.stringify({ commandcode: "user_xxxxxxxxxxxx" }, null, 2) + "\n";
-
-/**
- * Ensure ~/.omp/agent/auth.json exists with a template.
- */
-function createAuthJsonIfMissing(): void {
-	const dir = join(homedir(), ".omp", "agent");
-	if (!existsSync(dir)) {
-		mkdirSync(dir, { recursive: true, mode: 0o700 });
-	}
-	if (!existsSync(AUTH_JSON_PATH)) {
-		writeFileSync(AUTH_JSON_PATH, AUTH_JSON_TEMPLATE, { mode: 0o600 });
-	}
-}
-
-/**
- * Read a Command Code API key from ~/.omp/agent/auth.json.
- * Returns undefined if absent or still the template placeholder.
- */
-function readApiKeyFromAuthJson(): string | undefined {
-	try {
-		const raw = readFileSync(AUTH_JSON_PATH, "utf-8");
-		const data: Record<string, unknown> = JSON.parse(raw);
-		const key = typeof data.commandcode === "string" ? data.commandcode
-			: typeof data.apiKey === "string" ? data.apiKey
-			: undefined;
-		if (key && key !== "user_xxxxxxxxxxxx") return key;
-	} catch {
-		// File missing or corrupt — handled by createAuthJsonIfMissing / login
-	}
-	return undefined;
-}
 
 // ---------------------------------------------------------------------------
 // Extension entry point
@@ -114,7 +79,7 @@ function readApiKeyFromAuthJson(): string | undefined {
 
 export default async function (pi: ExtensionAPI): Promise<void> {
 	createAuthJsonIfMissing();
-	const authKey = readApiKeyFromAuthJson();
+	const authKey = getNextAvailableKey();
 
 	let models: ProviderModelConfig[];
 	try {

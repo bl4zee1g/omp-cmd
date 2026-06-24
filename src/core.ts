@@ -12,6 +12,7 @@ import type {
 import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai";
 import { getApiKey, getEnvironmentInfo, messagesToCC, parseStreamEventLine, projectSlugFromPath, systemPromptToText, toolsToJson } from "./converters";
 import { isRecord, numberValue, stringValue } from "./types";
+import { getNextAvailableKey, markKeyExhausted } from "./key-manager";
 
 export const DEFAULT_API_BASE = "https://api.commandcode.ai";
 export const COMMAND_CODE_CLI_VERSION = "0.40.0";
@@ -75,6 +76,13 @@ function commandCodeUsage(event: Record<string, unknown>): Record<string, unknow
 function commandCodeInputTokenDetails(usage: Record<string, unknown>): Record<string, unknown> | undefined {
 	return isRecord(usage.inputTokenDetails) ? (usage.inputTokenDetails as Record<string, unknown>) : undefined;
 }
+/**
+ * Check if an error indicates insufficient credits (out of balance).
+ */
+function isInsufficientCreditsError(errorBody: string): boolean {
+	return errorBody.includes("insufficient credits") || 
+		errorBody.includes("BAD_REQUEST");
+}
 
 export function streamCommandCode(
 	model: Model,
@@ -110,7 +118,8 @@ export function streamCommandCode(
 			? (options.apiKey as string)
 			: undefined;
 
-		const apiKey = hostKey ?? getApiKey();
+		// Use host-provided key, or fall back to key manager (supports multiple keys)
+		const apiKey = hostKey ?? getNextAvailableKey() ?? getApiKey();
 		if (!apiKey) {
 			const msg: AssistantMessage = {
 				role: "assistant",
@@ -371,6 +380,29 @@ export function streamCommandCode(
 
 					if (!response.ok) {
 						const errBody = await response.text().catch(() => "");
+						
+						// Check if this is an insufficient credits error
+						if (response.status === 400 && isInsufficientCreditsError(errBody)) {
+							// Mark current key as exhausted
+							markKeyExhausted(apiKey);
+							
+							// Try to get the next available key
+							const nextKey = getNextAvailableKey();
+							if (nextKey && nextKey !== apiKey) {
+								// Update the authorization header for retry
+								requestHeaders.Authorization = `Bearer ${nextKey}`;
+								// Reset state for retry
+								output.content.length = 0;
+								textBlock = undefined;
+								currentTextIdx = -1;
+								thinkingIdx = -1;
+								output.stopReason = "stop";
+								output.errorMessage = undefined;
+								finished = false;
+								continue retryLoop;
+							}
+						}
+						
 						throw new Error(`Command Code API error ${response.status}: ${errBody.slice(0, 500)}`);
 					}
 
