@@ -15,7 +15,7 @@ import { isRecord, numberValue, stringValue } from "./types";
 import { getNextAvailableKey, markKeyExhausted } from "./key-manager";
 
 export const DEFAULT_API_BASE = "https://api.commandcode.ai";
-export const COMMAND_CODE_CLI_VERSION = "0.40.0";
+export const COMMAND_CODE_CLI_VERSION = "0.40.5";
 
 const DEFAULT_MAX_RETRIES = 0;
 const DEFAULT_MAX_RETRY_DELAY_MS = 60_000;
@@ -381,8 +381,10 @@ export function streamCommandCode(
 					if (!response.ok) {
 						const errBody = await response.text().catch(() => "");
 						
-						// Check if this is an insufficient credits error
-						if (response.status === 400 && isInsufficientCreditsError(errBody)) {
+						// Rotate key on auth failure (401) or insufficient credits (400)
+						const isAuthError = response.status === 401;
+						const isCreditError = response.status === 400 && isInsufficientCreditsError(errBody);
+						if (isAuthError || isCreditError) {
 							// Mark current key as exhausted
 							markKeyExhausted(apiKey);
 							

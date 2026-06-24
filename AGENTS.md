@@ -282,6 +282,11 @@ omp-cmd/
 
 There's a high probability the user also has the source code of oh-my-pi along with its AGENTS.md and other docs cloned at ../oh-my-pi
 
+Commandcode often changes their authorization headers and other things, if the user says they're getting some sort of Invalid Authorization error there's a high likelihood it got changed again. In that case, you can use the locally installed officiall commandcode cli to compare the headers and other things. For just a quick check, you can run
+``` bash
+cmd -p [test prompt]
+```
+
 ### Conventions
 
 - **No build step.** Source `.ts` files are consumed directly by omp via Bun's TypeScript runtime.
